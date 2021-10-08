@@ -7,5 +7,5 @@ func main() {
 }
 
 func Sum(a, b string) string {
-	return a + "+" + b
+	return a + b
 }

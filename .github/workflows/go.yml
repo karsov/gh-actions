@@ -1,0 +1,45 @@
+name: Go
+on: pull_request
+jobs:
+  changedfiles:
+    runs-on: ubuntu-latest
+    outputs:
+      mrf1: ${{ steps.changes.outputs.mrf1 }}
+      mrf2: ${{ steps.changes.outputs.mrf2 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Get changed files
+        id: changes
+        run: |
+          git fetch --depth=1 origin ${{ github.event.pull_request.base.sha }}
+          export mrf1=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep ^mono-repo-folder-1/)
+          export mrf2=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep ^mono-repo-folder-2/)
+          echo "::set-output name=mrf1::$mrf1"
+          echo "::set-output name=mrf2::$mrf2"
+          echo "Files changed in mono-repo-folder-1: $mrf1"
+          echo "Files changed in mono-repo-folder-2: $mrf2"
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: changedfiles
+    if: ${{ needs.changedfiles.outputs.mrf1 || needs.changedfiles.outputs.mrf2 }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+    - name: Build folder 1
+      if: ${{ needs.changedfiles.outputs.mrf1 }}
+      run: cd mono-repo-folder-1/ && go build -v ./...
+    - name: Test folder 1
+      if: ${{ needs.changedfiles.outputs.mrf1 }}
+      run: cd mono-repo-folder-1/ && go test -v ./...
+    - name: Build folder 2
+      if: ${{ needs.changedfiles.outputs.mrf2 }}
+      run: cd mono-repo-folder-2/ && go build -v ./...
+    - name: Test folder 2
+      if: ${{ needs.changedfiles.outputs.mrf2 }}
+      run: cd mono-repo-folder-2/ && go test -v ./...
